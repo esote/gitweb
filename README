@@ -1,0 +1,31 @@
+Gitweb provides a minimal git web interface, sufficient for most small projects.
+
+Features:
+	- Multiple, separate repositories
+	- Repository references (HEAD, master, etc.)
+	- Bare repositories
+	- Typically-expensive responses are cached
+	- Chroot (optional)
+
+The page layout of gitweb was modeled after git.suckless.org, although the
+source is independent.
+
+Example configuration file (see config.go for full structure):
+
+	{
+		"repos": [
+			{
+				"cache_duration": "2h",
+				"description": "A repo.",
+				"path": "/path/to/local/repo",
+				"ref": "master"
+			},
+			{
+				"bare": true,
+				"cache_duration": "24h",
+				"description": "A repo cloned with --bare.",
+				"path": "/path/to/local/repo.git",
+				"ref": "master"
+			}
+		]
+	}
