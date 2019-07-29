@@ -3,9 +3,10 @@ Gitweb provides a minimal git web interface, sufficient for most small projects.
 Features:
 	- Multiple, separate repositories
 	- Repository references (HEAD, master, etc.)
-	- Bare repositories
+	- Supports bare repositories
 	- Typically-expensive responses are cached
 	- Chroot (optional)
+	- HTTPS (optional)
 
 The page layout of gitweb was modeled after git.suckless.org, although the
 source is independent.
@@ -13,6 +14,10 @@ source is independent.
 Example configuration file (see config.go for full structure):
 
 	{
+		"https": true,
+		"https_crt": "/path/to/server.crt",
+		"https_key": "/path/to/server.key",
+		"port": ":8443",
 		"repos": [
 			{
 				"cache_duration": "2h",

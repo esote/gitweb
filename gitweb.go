@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"log"
 	"net/http"
 	"os"
@@ -100,13 +101,20 @@ func multiplex(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	config := "config.json"
+	file := "config.json"
 
 	if len(os.Args) > 1 {
-		config = os.Args[1]
+		file = os.Args[1]
 	}
 
-	if err := parseConfig(config); err != nil {
+	var conf *config
+	var err error
+
+	if conf, err = parseConfig(file); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := initializeRepos(conf); err != nil {
 		log.Fatal(err)
 	}
 
@@ -124,14 +132,42 @@ func main() {
 	mux.HandleFunc("/", multiplex)
 	mux.HandleFunc("/style.css", css)
 
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: mux,
+	cfg := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		CurvePreferences: []tls.CurveID{
+			tls.CurveP521,
+			tls.X25519,
+		},
+		PreferServerCipherSuites: true,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		},
 	}
 
-	graceful.Graceful(srv, func() {
+	srv := &http.Server{
+		Addr:    conf.Port,
+		Handler: mux,
+
+		// will only be used if conf.HTTPS
+		TLSConfig:    cfg,
+		TLSNextProto: nil,
+	}
+
+	listen := func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
-	}, os.Interrupt)
+	}
+
+	if conf.HTTPS {
+		listen = func() {
+			err := srv.ListenAndServeTLS(conf.HTTPSCrt, conf.HTTPSKey)
+			if err != http.ErrServerClosed {
+				log.Fatal(err)
+			}
+		}
+	}
+
+	graceful.Graceful(srv, listen, os.Interrupt)
 }

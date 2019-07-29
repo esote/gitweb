@@ -22,7 +22,7 @@ type repository struct {
 
 var repos map[string]*repository
 
-func initializeRepos(conf config) error {
+func initializeRepos(conf *config) error {
 	repos = make(map[string]*repository, len(conf.Repos))
 
 	var err error
