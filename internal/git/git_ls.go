@@ -24,7 +24,7 @@ type LsItem struct {
 
 // Ls retrieves the list of tracked files.
 func (g *Git) Ls() ([]LsItem, error) {
-	out, err := g.run("git", "-P", "-C", g.path, "ls-tree", "-lr", g.ref)
+	out, err := g.run("ls-tree", "-lr", g.ref)
 
 	if err != nil {
 		return nil, err

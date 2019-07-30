@@ -19,19 +19,11 @@ func (g *Git) Show(file string) (show Show, err error) {
 		return
 	}
 
-	show.Binary = g.binary(file)
-
-	if show.Binary {
+	if show.Binary = g.binary(file); show.Binary {
 		show.File = nil
 		return
 	}
 
-	out, err := g.run("git", "-P", "-C", g.path, "show", g.ref+":"+file)
-
-	if err != nil {
-		return
-	}
-
-	show.File = out
+	show.File, err = g.run("show", g.ref+":"+file)
 	return
 }

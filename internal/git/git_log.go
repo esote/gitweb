@@ -28,8 +28,8 @@ type LogItem struct {
 func (g *Git) Log() ([]LogItem, error) {
 	const l = 6
 
-	out, err := g.run("git", "-P", "-C", g.path, "log",
-		"--format=%aI%n%H%n%an%n%s", "--shortstat", g.ref)
+	out, err := g.run("log", "--format=%aI%n%H%n%an%n%s", "--shortstat",
+		g.ref)
 
 	if err != nil {
 		return nil, err

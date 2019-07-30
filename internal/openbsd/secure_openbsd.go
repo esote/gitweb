@@ -28,7 +28,7 @@ func Secure(unveils [][2]string) error {
 }
 
 func pledge() error {
-	return unix.Pledge("stdio inet rpath proc exec", "stdio rpath tty")
+	return unix.Pledge("stdio inet rpath proc exec", "stdio rpath")
 }
 
 func unveil(paths [][2]string) error {

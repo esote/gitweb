@@ -30,31 +30,34 @@ func (g *Git) Ref() string {
 
 // Utility: check if file is "binary" or printable as plain-text
 func (g *Git) binary(file string) bool {
-	out, err := g.run("git", "-P", "-C", g.path, "grep", "-I",
-		"--name-only", "-e", ".", "--", file)
+	out, err := g.run("grep", "-I", "--name-only", "-e", ".", "--", file)
 
 	return err != nil || len(out) == 0
 }
 
 // Utility: check if file exists according to git
 func (g *Git) exists(file string) bool {
-	out, err := g.run("git", "-P", "-C", g.path, "cat-file", "-e",
-		g.ref+":"+file)
+	out, err := g.run("cat-file", "-e", g.ref+":"+file)
 
 	return err == nil && len(out) == 0
 }
 
 // Utility: check if commit has parents
 func (g *Git) hasParents(commit string) bool {
-	out, err := g.run("git", "-P", "-C", g.path, "rev-list", "--parents",
-		"-n", "1", commit)
+	out, err := g.run("rev-list", "--parents", "-n", "1", commit)
 
 	return err == nil && bytes.Index(out, []byte{' '}) != -1
 }
 
 // Utility: run command with timeout
-func (g *Git) run(cmd string, arg ...string) ([]byte, error) {
+func (g *Git) run(arg ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
-	return exec.CommandContext(ctx, cmd, arg...).Output()
+
+	arg = append([]string{"-P", "-C", g.path}, arg...)
+
+	cmd := exec.CommandContext(ctx, "git", arg...)
+	cmd.Env = []string{"COLUMNS=80"}
+
+	return cmd.Output()
 }

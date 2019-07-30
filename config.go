@@ -54,8 +54,8 @@ func parseConfig(path string) (*config, error) {
 		u := conf.OpenBSDUnveils
 
 		if conf.HTTPS {
-			u = append(u, [2]string{conf.HTTPSCrt, "r"})
-			u = append(u, [2]string{conf.HTTPSKey, "r"})
+			u = append(u, [2]string{conf.HTTPSCrt, "r"},
+				[2]string{conf.HTTPSKey, "r"})
 		}
 
 		for _, r := range conf.Repos {
