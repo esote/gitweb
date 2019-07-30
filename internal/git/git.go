@@ -3,7 +3,6 @@ package git
 import (
 	"bytes"
 	"context"
-	"os"
 	"os/exec"
 	"time"
 )
@@ -31,10 +30,10 @@ func (g *Git) Ref() string {
 
 // Utility: check if file is "binary" or printable as plain-text
 func (g *Git) binary(file string) bool {
-	out, err := g.run("git", "-P", "-C", g.path, "merge-file", os.DevNull,
-		os.DevNull, file)
+	out, err := g.run("git", "-P", "-C", g.path, "grep", "-I",
+		"--name-only", "-e", ".", "--", file)
 
-	return err != nil || len(out) != 0
+	return err != nil || len(out) == 0
 }
 
 // Utility: check if file exists according to git
