@@ -50,5 +50,6 @@ specify "openbsd_unveils" as an array of additional unveils. On OpenBSD 6.5:
 	"openbsd_unveils": [
 		["/usr/libexec/ld.so", "r"],
 		["/usr/lib/", "r"],
-		["/usr/local/", "rx"]
+		["/usr/local/lib/", "r"],
+		["/usr/local/bin/git", "rx"]
 	]
