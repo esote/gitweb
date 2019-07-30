@@ -5,6 +5,7 @@ Features:
 	- Repository references (HEAD, master, etc.)
 	- Supports bare repositories
 	- Typically-expensive responses are cached
+	- Process restriction with pledge(2) and unveil(2) on OpenBSD (optional)
 	- Chroot (optional)
 	- HTTPS (optional)
 
@@ -34,3 +35,20 @@ Example configuration file (see config.go for full structure):
 			}
 		]
 	}
+
+Notes for OpenBSD users:
+
+To use gitweb's built-in pledge(2) and unveil(2) restrictions you must customize
+the config. To enable OpenBSD restrictions:
+
+	"openbsd": true
+
+By default this unveils repository paths and the HTTPS crt and key paths.
+However it will not unveil the path to git nor the dynamic linker! For this
+specify "openbsd_unveils" as an array of additional unveils. On OpenBSD 6.5:
+
+	"openbsd_unveils": [
+		["/usr/libexec/ld.so", "r"],
+		["/usr/lib/", "r"],
+		["/usr/local/", "rx"]
+	]
