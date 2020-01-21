@@ -2,52 +2,64 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"io"
 	"log"
 	"net/http"
 
 	"github.com/esote/gitweb/internal/git"
-	"github.com/esote/util/tcache"
 )
 
-func writeError(w http.ResponseWriter, status int) {
+func httpError(w http.ResponseWriter, status int) {
 	http.Error(w, http.StatusText(status), status)
 }
 
-func writeCached(w http.ResponseWriter, cache *tcache.TCache) {
-	ret := cache.Next()
-
-	switch ret.(type) {
-	case bytes.Buffer:
-		b := ret.(bytes.Buffer)
-
-		if _, err := b.WriteTo(w); err != nil {
+func httpLog(w http.ResponseWriter, r *http.Request, repo *repository) {
+	b, err := logCached(repo)
+	if err != nil {
+		if err == context.DeadlineExceeded {
+			httpError(w, http.StatusRequestTimeout)
+		} else {
+			httpError(w, http.StatusInternalServerError)
 			log.Println(err)
 		}
-
 		return
-	case error:
-		log.Println(ret)
 	}
 
-	writeError(w, http.StatusInternalServerError)
-}
-
-func httpLog(w http.ResponseWriter, r *http.Request, repo *repository) {
-	writeCached(w, repo.caches["log"])
+	if _, err = w.Write(b); err != nil {
+		log.Println(err)
+	}
 }
 
 func httpLs(w http.ResponseWriter, r *http.Request, repo *repository) {
-	writeCached(w, repo.caches["ls"])
+	b, err := lsCached(repo)
+	if err != nil {
+		if err == context.DeadlineExceeded {
+			httpError(w, http.StatusRequestTimeout)
+		} else {
+			httpError(w, http.StatusInternalServerError)
+			log.Println(err)
+		}
+		return
+	}
+
+	if _, err = w.Write(b); err != nil {
+		log.Println(err)
+	}
 }
 
 func httpCommit(w http.ResponseWriter, r *http.Request, repo *repository, hash string) {
 	out, err := repo.Git.Commit(hash)
 
 	if err != nil {
-		if err == git.ErrInvalidHash {
-			writeError(w, http.StatusBadRequest)
-		} else {
-			writeError(w, http.StatusInternalServerError)
+		switch err {
+		case git.ErrInvalidHash:
+			httpError(w, http.StatusBadRequest)
+		case context.DeadlineExceeded:
+			httpError(w, http.StatusRequestTimeout)
+		default:
+			httpError(w, http.StatusInternalServerError)
+			log.Println(err)
 		}
 		return
 	}
@@ -57,32 +69,42 @@ func httpCommit(w http.ResponseWriter, r *http.Request, repo *repository, hash s
 		Commit *git.Commit
 	}{
 		page: page{
-			Repo:  repo,
-			Title: repo.Name + " - Commit " + hash,
+			Repo:      repo,
+			Title:     repo.Name + " - Commit " + hash,
+			Integrity: integrity,
 		},
 		Commit: out,
 	}
 
-	if err = templates["commit"].Execute(w, page); err != nil {
+	var b bytes.Buffer
+	if err = templates["commit"].Execute(&b, page); err != nil {
+		log.Println(err)
+		httpError(w, http.StatusInternalServerError)
+		return
+	}
+	if _, err = io.Copy(w, &b); err != nil {
 		log.Println(err)
 	}
 }
 
 func httpFile(w http.ResponseWriter, r *http.Request, repo *repository, file string) {
 	if repo.Bare {
-		writeError(w, http.StatusBadRequest)
+		httpError(w, http.StatusNotFound)
 		return
 	}
 
 	out, err := repo.Git.Show(file)
 
 	if err != nil {
-		if err == git.ErrNotExist {
-			writeError(w, http.StatusBadRequest)
-		} else {
-			writeError(w, http.StatusInternalServerError)
+		switch err {
+		case git.ErrNotExist:
+			httpError(w, http.StatusBadRequest)
+		case context.DeadlineExceeded:
+			httpError(w, http.StatusRequestTimeout)
+		default:
+			httpError(w, http.StatusInternalServerError)
+			log.Println(err)
 		}
-
 		return
 	}
 
@@ -91,13 +113,20 @@ func httpFile(w http.ResponseWriter, r *http.Request, repo *repository, file str
 		git.Show
 	}{
 		page: page{
-			Repo:  repo,
-			Title: repo.Name + " - File " + file,
+			Repo:      repo,
+			Title:     repo.Name + " - File " + file,
+			Integrity: integrity,
 		},
 		Show: out,
 	}
 
-	if err = templates["show"].Execute(w, page); err != nil {
+	var b bytes.Buffer
+	if err = templates["show"].Execute(&b, page); err != nil {
+		log.Println(err)
+		httpError(w, http.StatusInternalServerError)
+		return
+	}
+	if _, err = io.Copy(w, &b); err != nil {
 		log.Println(err)
 	}
 }

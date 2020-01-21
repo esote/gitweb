@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/esote/util/pool"
 )
 
 // LogStat is the LogItem file diff stats.
@@ -25,33 +27,42 @@ type LogItem struct {
 }
 
 // Log retrieves the simple commit history.
-func (g *Git) Log() ([]LogItem, error) {
+func (g *Git) Log() ([]*LogItem, error) {
 	const l = 6
 
-	out, err := g.run("log", "--format=%aI%n%H%n%an%n%s", "--shortstat",
-		g.ref)
-
+	out, err := g.run("log", "--format=%aI%n%H%n%an%n%s",
+		"--shortstat", g.ref)
 	if err != nil {
 		return nil, err
 	}
 
-	b := bytes.Split(out[:len(out)-1], []byte{'\n'})
+	lines := bytes.Split(out[:len(out)-1], []byte{'\n'})
 
-	if len(b)%l != 0 {
+	if len(lines)%l != 0 {
 		return nil, errors.New("git: log: output line count mismatch")
 	}
 
-	ret := make([]LogItem, len(b)/l)
+	ret := make([]*LogItem, len(lines)/l)
+	p := pool.New(5, 100)
+	errs := make(chan error, 1)
+	defer close(errs)
 
-	for i := 0; i < len(b); i += l {
-		item, err := parseLogItem(b[i : i+l])
-
+	f := func(args ...interface{}) {
+		var err error
+		ret[args[0].(int)/l], err = parseLogItem(args[1].([][]byte))
 		if err != nil {
-			return nil, err
+			select {
+			case errs <- err:
+			default:
+			}
 		}
-
-		ret[i/l] = *item
 	}
+
+	for i := 0; i < len(lines); i += l {
+		p.Enlist(true, f, i, lines[i:i+l])
+	}
+
+	p.Close(false)
 
 	return ret, nil
 }

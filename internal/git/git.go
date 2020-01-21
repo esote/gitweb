@@ -31,22 +31,19 @@ func (g *Git) Ref() string {
 // Utility: check if file is "binary" or printable as plain-text
 func (g *Git) binary(file string) bool {
 	out, err := g.run("grep", "-I", "--name-only", "-e", ".", "--", file)
-
 	return err != nil || len(out) == 0
 }
 
 // Utility: check if file exists according to git
 func (g *Git) exists(file string) bool {
 	out, err := g.run("cat-file", "-e", g.ref+":"+file)
-
 	return err == nil && len(out) == 0
 }
 
 // Utility: check if commit has parents
 func (g *Git) hasParents(commit string) bool {
 	out, err := g.run("rev-list", "--parents", "-n", "1", commit)
-
-	return err == nil && bytes.Index(out, []byte{' '}) != -1
+	return err == nil && bytes.IndexByte(out, ' ') != -1
 }
 
 // Utility: run command with timeout
@@ -58,6 +55,9 @@ func (g *Git) run(arg ...string) ([]byte, error) {
 
 	cmd := exec.CommandContext(ctx, "git", arg...)
 	cmd.Env = []string{"COLUMNS=80"}
-
-	return cmd.Output()
+	b, err := cmd.Output()
+	if ctx.Err() == context.DeadlineExceeded {
+		err = ctx.Err()
+	}
+	return b, err
 }
